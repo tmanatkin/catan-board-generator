@@ -4,34 +4,16 @@
 // no two of (same number)/(six or eight) next to each other
 // no (same number)/(six or eight) on the same resource
 
-type Resource = "wood" | "wheat" | "sheep" | "brick" | "ore" | "desert";
-
-interface UncollapsedTile {
-  value: null;
-  options: Resource[];
-}
-
-interface CollapsedTile {
-  value: Resource;
-  options: null;
-}
-
-type Tile = UncollapsedTile | CollapsedTile;
-
-type Coordinate = [number, number];
-
-type CoordinateKey = `${number},${number}`;
-
-type Board = { [key: CoordinateKey]: Tile };
-
-type ResourceCounts = { [key in Resource]: number };
-
-interface BoardGenerationResult {
-  board: Board;
-  complete: boolean;
-}
-
-type PropagationRule = (b: Board, c: CoordinateKey, r: Resource) => boolean;
+import type {
+  Board,
+  BoardGenerationResult,
+  Coordinate,
+  CoordinateKey,
+  PropagationRule,
+  Resource,
+  ResourceCounts,
+  UncollapsedTile,
+} from "./types";
 
 const RESOURCE_OPTIONS: Resource[] = ["wood", "wheat", "sheep", "brick", "ore", "desert"];
 
