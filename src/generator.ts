@@ -269,5 +269,8 @@ function generateCompleteResourceBoard(
   return { board: result.board, attempts };
 }
 
-let resourceBoard = generateCompleteResourceBoard(generateHexBoard(2), resourceCounts, limitedSameResourceAdjacent);
-console.log(resourceBoard);
+// TODO: Remove hardcoded values here
+export function generateResourceBoard(): Board {
+  const result = generateCompleteResourceBoard(generateHexBoard(2), resourceCounts, limitedSameResourceAdjacent);
+  return result.board;
+}
