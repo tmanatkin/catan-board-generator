@@ -14,26 +14,28 @@ export interface CollapsedTile {
 
 export type Tile = UncollapsedTile | CollapsedTile;
 
-export type Board<TileType extends Tile = Tile> = {
-  [q: number]: {
-    [r: number]: TileType;
-  };
-};
+export type Board<TileType extends Tile = Tile> = Record<number, Record<number, TileType>>;
 
 export type UncollapsedBoard = Board<UncollapsedTile>;
 
 export type CollapsedBoard = Board<CollapsedTile>;
 
-export type ResourceCounts = { [key in Resource]: number };
+export type ResourceCounts = Record<Resource, number>;
 
 export type PropagationRule = (board: Board, coordinate: Coordinate, resource: Resource) => boolean;
 
 export type BoardGenerationResult =
+  // collapsed board that is
   | {
       board: CollapsedBoard;
       complete: true;
     }
+  // partially collapsed/uncollapsed board that is incomplete
   | {
       board: Board;
       complete: false;
     };
+
+export type SvgPoint = [x: number, y: number];
+
+export type ResourceColors = Record<Resource, string>;

@@ -1,6 +1,6 @@
-import type { CollapsedBoard, Resource } from "./types";
+import type { CollapsedBoard, ResourceColors, SvgPoint } from "./types";
 
-const RESOURCE_COLORS: { [resource in Resource]: string } = {
+const RESOURCE_COLORS: ResourceColors = {
   wood: "#4f8f45",
   wheat: "#e6c84f",
   sheep: "#8fbd61",
@@ -43,7 +43,7 @@ export function renderBoard(board: CollapsedBoard): void {
       const y = ((HEX_SIZE * 3) / 2) * r;
 
       // calculate points for hex corners
-      const points = [
+      const points: SvgPoint[] = [
         [x, y - HEX_SIZE],
         [x + HALF_HEX_WIDTH, y - HEX_SIZE / 2],
         [x + HALF_HEX_WIDTH, y + HEX_SIZE / 2],

@@ -27,7 +27,7 @@ const NEIGHBOR_COORDINATES: Coordinate[] = [
   [0, 1],
 ];
 
-let resourceCounts: ResourceCounts = {
+const resourceCounts: ResourceCounts = {
   wood: 4,
   wheat: 4,
   sheep: 4,
