@@ -7,10 +7,12 @@
 import type {
   Board,
   BoardGenerationResult,
+  CollapsedBoard,
   Coordinate,
   PropagationRule,
   Resource,
   ResourceCounts,
+  UncollapsedBoard,
   UncollapsedTile,
 } from "./types";
 
@@ -35,8 +37,8 @@ let resourceCounts: ResourceCounts = {
 };
 
 // generate hexagonal shaped board based on radius
-function generateHexBoard(radius: number): Board {
-  const board: Board = {};
+function generateHexBoard(radius: number): UncollapsedBoard {
+  const board: UncollapsedBoard = {};
 
   // iterate through all possible q and r values within radius
   for (let q = -radius; q <= radius; q++) {
@@ -193,6 +195,11 @@ function limitedSameResourceAdjacent(board: Board, coordinate: Coordinate, resou
   return true;
 }
 
+// narrow board type to collapsed board if every tile is collapsed
+function isCollapsedBoard(board: Board): board is CollapsedBoard {
+  return Object.values(board).every((row) => Object.values(row).every((tile) => tile.value !== null));
+}
+
 // using wave function collapse, generate resources for a given board
 function generateBoardResources(
   board: Board,
@@ -249,16 +256,21 @@ function generateBoardResources(
     nextCoordinate = findLowestEntropyTile(board);
   }
 
+  // verify board is collapsed
+  if (!isCollapsedBoard(board)) {
+    return { board, complete: false };
+  }
+
   // return complete board
   return { board, complete: true };
 }
 
 // generate resource boards until a complete one is found
 function generateCompleteResourceBoard(
-  board: Board,
+  board: UncollapsedBoard,
   resourceTileCounts: ResourceCounts,
   propagationRule: PropagationRule
-) {
+): { board: CollapsedBoard; attempts: number } {
   let result: BoardGenerationResult;
 
   let attempts = 0;
@@ -277,7 +289,7 @@ function generateCompleteResourceBoard(
 }
 
 // TODO: Remove hardcoded values here
-export function generateResourceBoard(): Board {
+export function generateResourceBoard(): CollapsedBoard {
   const result = generateCompleteResourceBoard(generateHexBoard(2), resourceCounts, limitedSameResourceAdjacent);
   return result.board;
 }
