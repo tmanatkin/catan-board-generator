@@ -8,7 +8,6 @@ import type {
   Board,
   BoardGenerationResult,
   Coordinate,
-  CoordinateKey,
   PropagationRule,
   Resource,
   ResourceCounts,
@@ -35,16 +34,6 @@ let resourceCounts: ResourceCounts = {
   desert: 1,
 };
 
-// convert coordinate to object key
-function coordKey([q, r]: Coordinate): CoordinateKey {
-  return `${q},${r}`;
-}
-
-// convert object key to coordinate
-function keyCoord(key: CoordinateKey): Coordinate {
-  return key.split(",").map(Number) as Coordinate;
-}
-
 // generate hexagonal shaped board based on radius
 function generateHexBoard(radius: number): Board {
   const board: Board = {};
@@ -57,8 +46,13 @@ function generateHexBoard(radius: number): Board {
         continue;
       }
 
-      // create starting entries for each board space
-      board[coordKey([q, r])] = {
+      // create q row if doesn't exist
+      if (board[q] === undefined) {
+        board[q] = {};
+      }
+
+      // create starting entry tile objects
+      board[q][r] = {
         options: [...RESOURCE_OPTIONS],
         value: null,
       };
@@ -70,40 +64,41 @@ function generateHexBoard(radius: number): Board {
 }
 
 // get neighbors for current tile
-function getNeighbors(board: Board, [q, r]: Coordinate): CoordinateKey[] {
-  const keys: CoordinateKey[] = [];
+function getNeighbors(board: Board, [q, r]: Coordinate): Coordinate[] {
+  const coordinates: Coordinate[] = [];
 
   // for every set of neighbor coordinates
   for (const [dq, dr] of NEIGHBOR_COORDINATES) {
     // find neighbor tile to current coordinates
-    const key = coordKey([q + dq, r + dr]);
+    const neighborQ = q + dq;
+    const neighborR = r + dr;
 
     // if a tile exists
-    if (board[key]) {
-      keys.push(key);
+    if (board[neighborQ]?.[neighborR]) {
+      coordinates.push([neighborQ, neighborR]);
     }
   }
 
-  return keys;
+  return coordinates;
 }
 
 // choose resource option to collapse to, weighted on the available count
 function chooseWeightedResource(tile: UncollapsedTile, resourceTileCounts: ResourceCounts): Resource {
-  let optionWeights: ResourceCounts = {} as ResourceCounts;
   let runningTotal = 0;
 
   // add to running total for number of each available resource
   for (const option of tile.options) {
     runningTotal += resourceTileCounts[option];
-    optionWeights[option] = runningTotal;
   }
 
   // pick a random number along the possible scale
-  let choice = Math.random() * runningTotal;
+  const choice = Math.random() * runningTotal;
+  let cumulativeWeight = 0;
 
   // iterate through possible resources and find choice based on set scale
   for (const resource of tile.options) {
-    if (choice <= optionWeights[resource]) {
+    cumulativeWeight += resourceTileCounts[resource];
+    if (choice < cumulativeWeight) {
       return resource;
     }
   }
@@ -114,24 +109,26 @@ function chooseWeightedResource(tile: UncollapsedTile, resourceTileCounts: Resou
 }
 
 // selects tile with lowest entropy (least amount of choice), if entropy is equal randomly choose
-function findLowestEntropyTile(board: Board): CoordinateKey | null {
+function findLowestEntropyTile(board: Board): Coordinate | null {
   let lowestEntropy = Infinity;
-  let candidates: CoordinateKey[] = [];
+  let candidates: Coordinate[] = [];
 
-  for (const [rawKey, tile] of Object.entries(board)) {
-    const key = rawKey as CoordinateKey;
+  for (const [q, row] of Object.entries(board)) {
+    for (const [r, tile] of Object.entries(row)) {
+      const coordinate: Coordinate = [Number(q), Number(r)]; // convert q and r to numbers, as object.entries converts them strings
 
-    // skip tiles that have already been assigned a value
-    if (tile.value !== null) continue;
+      // skip tiles that have already been assigned a value
+      if (tile.value !== null) continue;
 
-    // if lowest entropy found, set as candidate
-    if (tile.options.length < lowestEntropy) {
-      lowestEntropy = tile.options.length;
-      candidates = [key];
-    }
-    // if another lowest entropy candidate found, save it
-    else if (tile.options.length === lowestEntropy) {
-      candidates.push(key);
+      // if lowest entropy found, set as candidate
+      if (tile.options.length < lowestEntropy) {
+        lowestEntropy = tile.options.length;
+        candidates = [coordinate];
+      }
+      // if another lowest entropy candidate found, save it
+      else if (tile.options.length === lowestEntropy) {
+        candidates.push(coordinate);
+      }
     }
   }
 
@@ -149,13 +146,13 @@ function findLowestEntropyTile(board: Board): CoordinateKey | null {
 }
 
 // tiles cannot be assigned the same resource as their neighbor
-function noSameResourceAdjacent(board: Board, key: CoordinateKey, resource: Resource): boolean {
-  for (const nKey of getNeighbors(board, keyCoord(key))) {
+function noSameResourceAdjacent(board: Board, coordinate: Coordinate, resource: Resource): boolean {
+  for (const [nq, nr] of getNeighbors(board, coordinate)) {
     // skip assigned value tiles
-    if (board[nKey].value !== null) {
+    if (board[nq][nr].value !== null) {
       continue;
     }
-    board[nKey].options = board[nKey].options.filter((option) => option !== resource);
+    board[nq][nr].options = board[nq][nr].options.filter((option) => option !== resource);
   }
 
   return true; // propagation rule succeeded (no fail states exist for this one)
@@ -164,25 +161,25 @@ function noSameResourceAdjacent(board: Board, key: CoordinateKey, resource: Reso
 // tiles are limited to sharing the same resource as their neighbor
 // brick and ore cannot neighbor the same resource
 // wood, wheat, and sheep cannot have more than 2 neighbors of the same resource
-function limitedSameResourceAdjacent(board: Board, key: CoordinateKey, resource: Resource): boolean {
+function limitedSameResourceAdjacent(board: Board, coordinate: Coordinate, resource: Resource): boolean {
   // fallback to no same resource adjacent rule if brick or ore
   if (resource === "brick" || resource === "ore") {
-    return noSameResourceAdjacent(board, key, resource);
+    return noSameResourceAdjacent(board, coordinate, resource);
   }
 
-  let matchingNeighbors: CoordinateKey[] = [];
+  let matchingNeighbors: Coordinate[] = [];
 
   // limit to 2 touching same resources for wood, wheat, sheep
-  for (const nKey of getNeighbors(board, keyCoord(key))) {
+  for (const [nq, nr] of getNeighbors(board, coordinate)) {
     // if neighbor has a resource match, count it
-    if (board[nKey].value === resource) {
-      matchingNeighbors.push(nKey);
+    if (board[nq][nr].value === resource) {
+      matchingNeighbors.push([nq, nr]);
     }
   }
 
   // if placing this tile creates a cluster of two, remove options from cluster neighbors
   if (matchingNeighbors.length === 1) {
-    const tPropSucc = noSameResourceAdjacent(board, key, resource);
+    const tPropSucc = noSameResourceAdjacent(board, coordinate, resource);
     const nPropSucc = noSameResourceAdjacent(board, matchingNeighbors[0], resource);
     return tPropSucc && nPropSucc;
   }
@@ -202,37 +199,46 @@ function generateBoardResources(
   resourceTileCounts: ResourceCounts,
   propagationRule: PropagationRule
 ): BoardGenerationResult {
-  // prime nextTileKey for first loop
-  let nextTileKey = findLowestEntropyTile(board);
+  // initialize nextCoordinate for first loop
+  let nextCoordinate = findLowestEntropyTile(board);
 
   // loop until no available tiles exist
-  while (nextTileKey !== null) {
-    // if tile has no resource options, this board cannot be completed
-    if (board[nextTileKey].options?.length === 0) {
+  while (nextCoordinate !== null) {
+    const [q, r] = nextCoordinate;
+
+    // catch error and throw if tile is already collapsed
+    if (board[q][r].value !== null) {
+      throw new Error("generateBoardResources: expected an uncollapsed tile");
+    }
+
+    // if uncollapsed tile has no more resource options, this board cannot be completed
+    if (board[q][r].options.length === 0) {
       return { board, complete: false };
     }
 
     // collapse tile to a specific resource and remove existing options
-    let collapsedTileResource = chooseWeightedResource(board[nextTileKey] as UncollapsedTile, resourceTileCounts);
-    board[nextTileKey] = { value: collapsedTileResource, options: null };
+    const collapsedTileResource = chooseWeightedResource(board[q][r], resourceTileCounts);
+    board[q][r] = { value: collapsedTileResource, options: null };
 
     // take 1 away from collapsed resource count
     resourceTileCounts[collapsedTileResource] -= 1;
 
     // if resource no longer exists, propagate to all tiles
     if (resourceTileCounts[collapsedTileResource] === 0) {
-      for (const tile of Object.values(board)) {
-        // skip assigned value tiles
-        if (tile.value !== null) {
-          continue;
+      for (const row of Object.values(board)) {
+        for (const tile of Object.values(row)) {
+          // skip assigned value tiles
+          if (tile.value !== null) {
+            continue;
+          }
+          tile.options = tile.options.filter((option) => option !== collapsedTileResource);
         }
-        tile.options = tile.options.filter((option) => option !== collapsedTileResource);
       }
     }
 
     // propagate using the current board, tile, and chosen collapsed resource
     // different propagation rules can be passed to change how the board is generated
-    const propagationSucceeded = propagationRule(board, nextTileKey, collapsedTileResource);
+    const propagationSucceeded = propagationRule(board, nextCoordinate, collapsedTileResource);
 
     // if propagation failed, this board cannot be completed
     if (!propagationSucceeded) {
@@ -240,7 +246,7 @@ function generateBoardResources(
     }
 
     // find next tile
-    nextTileKey = findLowestEntropyTile(board);
+    nextCoordinate = findLowestEntropyTile(board);
   }
 
   // return complete board
@@ -263,6 +269,7 @@ function generateCompleteResourceBoard(
     const freshBoard = structuredClone(board);
     const freshCounts = structuredClone(resourceTileCounts);
     result = generateBoardResources(freshBoard, freshCounts, propagationRule);
+    // TODO create a limit so this won't generate infinitely
   } while (!result.complete);
 
   // return board when result yields a complete board
