@@ -36,6 +36,8 @@ const resourceCounts: ResourceCounts = {
   desert: 1,
 };
 
+const MAX_BOARD_GENERATION_ATTEMPTS = 1_000;
+
 // generate hexagonal shaped board based on radius
 function generateHexBoard(radius: number): UncollapsedBoard {
   const board: UncollapsedBoard = {};
@@ -281,7 +283,11 @@ function generateCompleteResourceBoard(
     const freshBoard = structuredClone(board);
     const freshCounts = structuredClone(resourceTileCounts);
     result = generateBoardResources(freshBoard, freshCounts, propagationRule);
-    // TODO create a limit so this won't generate infinitely
+
+    // if complete result isn't found after a max number of attempts, throw error
+    if (!result.complete && attempts >= MAX_BOARD_GENERATION_ATTEMPTS) {
+      throw new Error(`generateCompleteResourceBoard: unable to generate a complete board after ${attempts} attempts`);
+    }
   } while (!result.complete);
 
   // return board when result yields a complete board
