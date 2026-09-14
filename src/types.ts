@@ -25,7 +25,7 @@ export type ResourceCounts = Record<Resource, number>;
 export type PropagationRule = (board: Board, coordinate: Coordinate, resource: Resource) => boolean;
 
 export type BoardGenerationResult =
-  // collapsed board that is
+  // collapsed board that is complete
   | {
       board: CollapsedBoard;
       complete: true;
