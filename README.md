@@ -1,6 +1,8 @@
 # Catan Board Generator
 
-Wave function collapse board generator for Catan using custom rules.
+Wave function collapse algorithm for a board game.
+
+<samp>&gt;</samp> Explored procedural generation with Catan.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-222222?style=for-the-badge&logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-222222?style=for-the-badge&logo=vite)
